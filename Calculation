@@ -1,0 +1,60 @@
+% Initialise
+current = 27.8287;          %Fast 32A
+%current = 9.698;           %Slow 10A
+%current = 29.6;            %peak demand
+N = 2000;                   %Number of cycles to end of life of battery
+
+array = [];
+cycle_t = [];
+new = 0;
+value = 0;
+cycle = 0;
+speed_period = 17070;   %fast
+%speed_period = 54480;   %slow
+
+% Online Data Reference for 12 Volt AGM Deep Cycle Solar Batteries PVX-490T
+ref_rate = [1; 2; 4; 8; 24; 48; 72; 100; 120];
+ref_ah = [31; 39; 40; 43; 49; 52; 54; 54; 55];
+ref_value = [];
+
+ 
+% Gather Data from simulation and calculate SOD
+% slow = 61; fast = 19;
+ for n = 2:97                   % simulation terminate when charging reaches 100% SOC
+    prev = current; 
+    current = Ah(n);
+    SOD = (prev - current);     % SOD for 900s sample  
+    diff(n-1) = SOD;
+    % multiply by it total charging/discharging time
+    x = SOD * speed_period * 4 / 3600;
+    array(n-1) = x;             % store result in array 
+   
+    % calculate the Rate which each sample require
+    for i = 1:9  
+        ref_value = ref_ah(i)/ref_rate(i);
+        old = new;
+        new = abs(ref_value - x);
+        if (new > old && old ~= 0)           %compare which rate to use
+            answer = old;            
+        else
+            answer = new;
+            ref = ref_ah(i);
+        end
+    end 
+    
+    %calculate cycles
+    cycle_t(n-1) = x/ref;
+ end  
+
+%calculate cycle in simulation period
+for m = 1:96
+    cycle = cycle + cycle_t(m);
+end
+ 
+%calculate estimate lifetime
+lifetime = N /cycle;               %EOL/cycle consumed
+lifetime_years = lifetime/365;
+
+result = sprintf('The Lifetime of the battery in years = %.2f',lifetime_years);
+plot(cycle_t);
+disp(result);
